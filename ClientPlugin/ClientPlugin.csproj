@@ -4,11 +4,11 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{A061FC6C-713E-42CD-B413-151AC8A5074C}</ProjectGuid>
+    <ProjectGuid>{9684BE43-35AA-464E-B511-3531D1E4EBA1}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>ClientPlugin</RootNamespace>
-    <AssemblyName>PluginTemplate</AssemblyName>
+    <AssemblyName>KeybindSwitcher</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <LangVersion>7.3</LangVersion>
