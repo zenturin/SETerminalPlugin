@@ -54,6 +54,7 @@ namespace ClientPlugin
             m_chatTextbox.Size = new Vector2(0.4f, 0.05f);
             m_chatTextbox.TextScale = 0.8f;
             m_chatTextbox.VisualStyle = MyGuiControlTextboxStyleEnum.Debug;
+            m_chatTextbox.ForceHighlight = true;
 
             Controls.Add(m_chatTextbox);
 
@@ -63,10 +64,12 @@ namespace ClientPlugin
         public override void HandleInput(bool receivedFocusInThisUpdate)
         {
             base.HandleInput(receivedFocusInThisUpdate);
+            /*
             if (MyInput.Static.IsNewKeyPressed(MyKeys.CapsLock))
             {
                 CloseScreen();
             }
+            */
             // CloseScreen();
         }
 

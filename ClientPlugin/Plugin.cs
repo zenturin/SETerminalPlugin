@@ -34,7 +34,7 @@ namespace ClientPlugin
     // ReSharper disable once UnusedType.Global
     public class Plugin : IPlugin, IDisposable
     {
-        public const string Name = "KeybindSwitcher";
+        public const string Name = "Terminal";
 
         public static Plugin Instance { get; private set; }
 
@@ -91,7 +91,7 @@ namespace ClientPlugin
                 cmd.ChatTextbox.MoveCarriageToEnd();
             }
 
-            string newText = comms.update(cmd.m_chatTextbox.Text);
+            string newText = comms.update(cmd.m_chatTextbox.Text,cmd.m_chatTextbox.CarriagePositionIndex);
             if (newText != null)
             {
                 cmd.m_chatTextbox.Text = newText;
@@ -102,7 +102,6 @@ namespace ClientPlugin
         public void CloseMain()
         {
             cmd = null;
-            
         }
 
 

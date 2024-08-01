@@ -25,13 +25,18 @@ namespace ClientPlugin
             Controlled = controller;
         }
 
-        public string update(string CMDText)
+        public string update(string CMDText,int carriage)
         {
             bool ClientUpdate = false;
 
             if (CMDText != Data.Text)
             {
                 Data.Text = CMDText;
+                ClientUpdate = true;
+            }
+            if (carriage != Data.CarriageIndex)
+            {
+                Data.CarriageIndex = carriage;
                 ClientUpdate = true;
             }
             if (Controlled.Pilot.Name.ToString() != Data.User)
