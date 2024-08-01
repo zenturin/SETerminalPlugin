@@ -12,7 +12,6 @@ using Sandbox.Graphics.GUI;
 using VRage.Library.Utils;
 using VRageRender.ExternalApp;
 using VRage.Game.Components;
-
 using VRage.Input;
 using Sandbox.Game.Gui;
 using Sandbox.Game.World;
@@ -24,6 +23,10 @@ using DirectShowLib.Dvd;
 using Sandbox.Game.Entities;
 using Sandbox.ModAPI;
 using static VRage.Game.MyObjectBuilder_ControllerSchemaDefinition;
+using System.Collections.Generic;
+using VRage.Game.ModAPI.Ingame.Utilities;
+using VRage;
+using System.Runtime.CompilerServices;
 
 namespace ClientPlugin
 {
@@ -32,11 +35,11 @@ namespace ClientPlugin
     public class Plugin : IPlugin, IDisposable
     {
         public const string Name = "KeybindSwitcher";
+
         public static Plugin Instance { get; private set; }
 
         private CommandLine cmd = null;
-        private string memory;
-        private bool block = false;
+        private Comms comms = null;
 
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         public void Init(object gameInstance)
@@ -45,6 +48,9 @@ namespace ClientPlugin
             // TODO: Put your one time initialization code here.
             Harmony harmony = new Harmony(Name);
             harmony.PatchAll(Assembly.GetExecutingAssembly());
+            // My crap
+
+            
         }
 
         public void Dispose()
@@ -58,43 +64,49 @@ namespace ClientPlugin
         public void Update()
         {
             var controlled = MyAPIGateway.Session?.ControlledObject?.Entity;
-            if (controlled is MyCubeBlock)
+            if (controlled is MyShipController)
             {
-                MyCubeGrid controlledGrid = ((MyCubeBlock)controlled).CubeGrid;
-                if (!block | MyInput.Static.IsNewKeyPressed(MyKeys.OemTilde))
-                {
-                    startCMD(controlledGrid, (MyShipController)controlled);
-                    block = true;
-                }
-                if (cmd != null)
-                {
-                    if (cmd.State == MyGuiScreenState.OPENED)
-                    {
-                        updateCMD((MyShipController)controlled);
-                    }
-                }
-                
+                //MyCubeGrid controlledGrid = ((MyCubeBlock)controlled).CubeGrid;
+                Main((MyShipController) controlled);
             }
             else
             {
-                block = false;
+                CloseMain();
+            }
+
+        }
+
+        public void Main(MyShipController controlled)
+        {
+            if (comms == null)
+            {
+                comms = new Comms(controlled);
+            }
+            if (cmd == null)
+            {
+                comms.Controlled = controlled;
+                comms.Data.randomizeSessionID();
+                startCMD(controlled);
+                cmd.ChatTextbox.Text = comms.Data.Text;
+                cmd.ChatTextbox.MoveCarriageToEnd();
+            }
+
+            string newText = comms.update(cmd.m_chatTextbox.Text);
+            if (newText != null)
+            {
+                cmd.m_chatTextbox.Text = newText;
+                cmd.m_chatTextbox.MoveCarriageToEnd();
             }
         }
 
-        public void updateCMD(MyShipController controlled)
+        public void CloseMain()
         {
-            if (controlled.CustomData != memory)
-            {
-                cmd.ChatTextbox.Text = controlled.CustomData;
-                memory = controlled.CustomData;
-            }
-            else
-            {
-                controlled.CustomData = cmd.ChatTextbox.Text;
-                memory = cmd.ChatTextbox.Text;
-            }
+            cmd = null;
+            
         }
-        public void startCMD(MyCubeGrid grid,MyShipController controlled)
+
+
+        public void startCMD(MyShipController controlled)
         {
             
             //// Check if the 'capslock' key has been pressed since the last frame
@@ -104,7 +116,7 @@ namespace ClientPlugin
             //    cmd = new CommandLine();
             //    MyGuiSandbox.AddScreen(cmd);
             //}
-            if (controlled.DisplayNameText.Contains("[CMDInput]"))
+            if (comms.Data.CMDMode == "CMDInput")
             {
                 // creates a transparent commandline window
                 cmd = new CommandLine();
@@ -112,7 +124,7 @@ namespace ClientPlugin
                 cmd.m_chatTextbox.CanPlaySoundOnMouseOver = false;
                 MyGuiSandbox.AddScreen(cmd);
             }
-            else if (controlled.DisplayNameText.Contains("[CMDTerminal]"))
+            else if (comms.Data.CMDMode == "CMDTerminal")
             {
                 // creates a transparent commandline window
                 cmd = new CommandLine();
@@ -123,6 +135,7 @@ namespace ClientPlugin
                 MyGuiSandbox.AddScreen(cmd);
             }
         }
+
 
         // TODO: Uncomment and use this method to create a plugin configuration dialog
         // ReSharper disable once UnusedMember.Global
@@ -136,101 +149,5 @@ namespace ClientPlugin
         {
 
         }*/
-    }
-
-    class CommandLine : MyGuiScreenBase
-    {
-        public readonly MyGuiControlTextbox m_chatTextbox;
-
-        public MyGuiControlTextbox ChatTextbox
-        {
-            get { return m_chatTextbox; }
-        }
-
-        public static CommandLine Static = null;
-
-        private const int MESSAGE_HISTORY_SIZE = 20;
-
-        private static StringBuilder[] m_messageHistory = new StringBuilder[MESSAGE_HISTORY_SIZE];
-
-        static CommandLine()
-        {
-            for (int i = 0; i < MESSAGE_HISTORY_SIZE; ++i)
-            {
-                m_messageHistory[i] = new StringBuilder();
-            }
-        }
-
-        public CommandLine()
-            : base(new Vector2(0.5f, 0.5f), MyGuiConstants.SCREEN_BACKGROUND_COLOR, null)
-        {
-            MySandboxGame.Log.WriteLine("MyGuiScreenChat.ctor START");
-
-            EnabledBackgroundFade = false;
-            m_isTopMostScreen = true;
-            CanHideOthers = false;
-            DrawMouseCursor = true;
-            m_closeOnEsc = true;
-
-            m_chatTextbox = new MyGuiControlTextbox(
-                Vector2.Zero,
-                null);
-            m_chatTextbox.OriginAlign = MyGuiDrawAlignEnum.HORISONTAL_LEFT_AND_VERTICAL_TOP;
-            m_chatTextbox.Size = new Vector2(0.4f, 0.05f);
-            m_chatTextbox.TextScale = 0.8f;
-            m_chatTextbox.VisualStyle = MyGuiControlTextboxStyleEnum.Debug;
-
-            Controls.Add(m_chatTextbox);
-
-            MySandboxGame.Log.WriteLine("MyGuiScreenChat.ctor END");
-        }
-
-        public override void HandleInput(bool receivedFocusInThisUpdate)
-        {
-            base.HandleInput(receivedFocusInThisUpdate);
-            if (MyInput.Static.IsNewKeyPressed(MyKeys.CapsLock))
-            {
-                CloseScreen();
-            }
-            // CloseScreen();
-        }
-
-        public override bool Update(bool hasFocus)
-        {
-            if (!base.Update(hasFocus)) return false;
-
-            var normPos = m_position;
-            normPos = MyGuiScreenHudBase.ConvertHudToNormalizedGuiPosition(ref normPos);
-            m_chatTextbox.Position = new Vector2(0.15f, 0);
-            return true;
-        }
-
-        public override bool Draw()
-        {
-            return base.Draw();
-        }
-
-        public override string GetFriendlyName()
-        {
-            return "MyGuiScreenChat";
-        }
-
-        public override void LoadContent()
-        {
-            base.LoadContent();
-            Static = this;
-        }
-
-        public override void UnloadContent()
-        {
-            Static = null;
-            base.UnloadContent();
-        }
-
-        public override bool HideScreen()
-        {
-            UnloadContent();
-            return base.HideScreen();
-        }
     }
 }
