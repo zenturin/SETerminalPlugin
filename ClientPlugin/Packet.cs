@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xml.Serialization.GeneratedAssembly;
+using Sandbox.Graphics.GUI;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -8,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VRage.Game.ModAPI.Ingame.Utilities;
 using VRage.Game.VisualScripting.ScriptBuilder.Nodes;
+using VRageMath;
 
 namespace ClientPlugin
 {
@@ -16,14 +18,12 @@ namespace ClientPlugin
         // Definitions
 
         public MyIni data = new MyIni();
-        private MyIni defaults = new MyIni();
         Random randomizer = new Random();
 
         // Initialization
 
         public Packet()
         {
-            setDefaults();
             Reset();
         }
         // Accessors
@@ -37,32 +37,6 @@ namespace ClientPlugin
             set
             {
                 data.Set("Setup", "CMDMode", value);
-            }
-        }
-
-        public bool CustomUI
-        {
-            get
-            {
-                if (data.Get("Setup", "CustomUI").ToString().ToLower() == "true")
-                {
-                    return (true);
-                }
-                else
-                {
-                    return (false);
-                }
-            }
-            set
-            {
-                if (value)
-                {
-                    data.Set("Setup", "CustomUI", "True");
-                }
-                else
-                {
-                    data.Set("Setup", "CustomUI", "False");
-                }
             }
         }
 
@@ -140,6 +114,35 @@ namespace ClientPlugin
             }
         }
 
+        public List<string> SpecialKeys
+        {
+            get
+            {
+                List<MyIniKey> IniKeys = new List<MyIniKey>();
+                List<string> Keys = new List<string>();
+                data.GetKeys("SpecialKeys", IniKeys);
+                foreach (var key in IniKeys)
+                {
+                    Keys.Add(key.Name);
+                }
+                return Keys;
+            }
+            set
+            {
+                List<MyIniKey> IniKeys = new List<MyIniKey>();
+                data.GetKeys("SpecialKeys", IniKeys);
+                foreach (var oldkey in IniKeys)
+                {
+                    data.Delete("SpecialKeys", oldkey.Name);
+                }
+
+                foreach (var key in value)
+                {
+                    data.Set("SpecialKeys", key, "");
+                }
+            }
+        }
+
         public float Alpha
         {
             get
@@ -190,18 +193,229 @@ namespace ClientPlugin
             }
         }
 
-        public string VisualStyle
+        public MyGuiControlTextboxStyleEnum VisualStyle
         {
             get
             {
-                return (data.Get("UI", "VisualStyle").ToString());
+                switch (data.Get("UI", "VisualStyle").ToString())
+                {
+                    case "Debug":
+                        return MyGuiControlTextboxStyleEnum.Debug;
+                    case "Default":
+                        return MyGuiControlTextboxStyleEnum.Default;
+                    case "Custom":
+                        return MyGuiControlTextboxStyleEnum.Custom;
+                    case "NoHighlight":
+                        return MyGuiControlTextboxStyleEnum.NoHighlight;
+                    default:
+                        flagError("Invalid VisualStyle");
+                        return MyGuiControlTextboxStyleEnum.Default;
+                }
+                
             }
             set
             {
-                data.Set("UI", "VisualStyle", value);
+                switch (value)
+                {
+                    case MyGuiControlTextboxStyleEnum.Debug:
+                        data.Set("UI", "VisualStyle", "Debug");
+                        break;
+                    case MyGuiControlTextboxStyleEnum.Default:
+                        data.Set("UI", "VisualStyle", "Default");
+                        break;
+                    case MyGuiControlTextboxStyleEnum.Custom:
+                        data.Set("UI", "VisualStyle", "Custom");
+                        break;
+                    case MyGuiControlTextboxStyleEnum.NoHighlight:
+                        data.Set("UI", "VisualStyle", "NoHighlight");
+                        break;
+                }
+                
             }
         }
 
+        public float PositionX
+        {
+            get
+            {
+                return ((float)data.Get("UI", "PositionX").ToDecimal());
+            }
+            set
+            {
+                data.Set("UI", "PositionX", value.ToString());
+            }
+        }
+
+        public float PositionY
+        {
+            get
+            {
+                return ((float)data.Get("UI", "PositionY").ToDecimal());
+            }
+            set
+            {
+               data.Set("UI", "PositionY", value.ToString());
+            }
+        }
+
+        public Vector2 Size
+        {
+            get
+            {
+                Vector2 x = new Vector2();
+                string y = data.Get("UI","Size").ToString();
+                try
+                {
+                    var z = y.Split(',');
+                    List<float> results = new List<float>();
+                    foreach (var item in z)
+                    {
+                        string temp = item;
+                        int index = 0;
+                        if ((index = item.IndexOf("(")) != -1)
+                        {
+                            temp = temp.Remove(index,1);
+                        }
+                        if ((index = item.IndexOf(")")) != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        temp = temp.Trim();
+                        results.Add(float.Parse(temp));
+                    }
+                    x.X = results[0];
+                    x.Y = results[1];
+                    return x;
+                }
+                catch (Exception)
+                {
+                    flagError("Incorrect Size format");
+                    return Size;
+                }                
+            }
+            set
+            {
+                string str = "( " + value.X + " , " + value.Y + " )";
+                data.Set("UI", "Size", str);
+            }
+        }
+
+        public Vector4D ColorMask
+        {
+            get
+            {
+                Vector4D x = new Vector4D();
+                string y = data.Get("UI", "ColorMask").ToString();
+                try
+                {
+                    var z = y.Split(',');
+                    List<float> results = new List<float>();
+                    foreach (var item in z)
+                    {
+                        string temp = item;
+                        int index = 0;
+                        if ((index = item.IndexOf("(")) != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        if ((index = item.IndexOf(")")) != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        temp.Trim();
+                        results.Add(float.Parse(temp));
+                    }
+                    x.X = results[0];
+                    x.Y = results[1];
+                    x.Z = results[2];
+                    x.W = results[3];
+                    return x;
+                }
+                catch (Exception)
+                {
+                    flagError("Incorrect ColorMask format");
+                    return ColorMask;
+                }
+            }
+            set
+            {
+                string str = "( " + value.X + " , " + value.Y + " , " + value.Z +" , "+ value.W + " )";
+                data.Set("UI", "ColorMask", str);
+            }
+        }
+
+        public Vector4D BorderColor
+        {
+            get
+            {
+                Vector4D x = new Vector4D();
+                string y = data.Get("UI", "BorderColor").ToString();
+                try
+                {
+                    var z = y.Split(',');
+                    List<float> results = new List<float>();
+                    foreach (var item in z)
+                    {
+                        string temp = item;
+                        int index = 0;
+                        if ((index = item.IndexOf("(")) != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        if ((index = item.IndexOf(")")) != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        temp.Trim();
+                        results.Add(float.Parse(temp));
+                    }
+                    x.X = results[0];
+                    x.Y = results[1];
+                    x.Z = results[2];
+                    x.W = results[3];
+                    return x;
+                }
+                catch (Exception)
+                {
+                    flagError("Incorrect BorderColor format");
+                    return BorderColor;
+                }
+            }
+            set
+            {
+                string str = "( " + value.X + " , " + value.Y + " , " + value.Z + " , " + value.W + " )";
+                data.Set("UI", "BorderColor", str);
+            }
+        }
+
+        public List<string> GeneralKeys
+        {
+            get
+            {
+                List<MyIniKey> IniKeys = new List<MyIniKey>();
+                List<string> Keys = new List<string>();
+                data.GetKeys("GeneralKeys", IniKeys);
+                foreach (var key in IniKeys)
+                {
+                    Keys.Add(key.Name);
+                }
+                return Keys;
+            }
+            set
+            {
+                List<MyIniKey> IniKeys = new List<MyIniKey>();
+                data.GetKeys("GeneralKeyss", IniKeys);
+                foreach (var oldkey in IniKeys)
+                {
+                    data.Delete("GeneralKeys", oldkey.Name);
+                }
+
+                foreach (var key in value)
+                {
+                    data.Set("GeneralKeys", key, "");
+                }
+            }
+        }
         public int ErrorCount
         {
             get
@@ -238,18 +452,27 @@ namespace ClientPlugin
             // INI Initialization and default values
             // SETUP
             data.Set("Setup", "CMDMode", "CMDTerminal");
-            data.Set("Setup", "CustomUI", "False");// Bool
-            data.Set("Setup", "SessionID", "NA");
+            data.Set("Setup", "SessionID", randomizer.Next(10000));
             // STATES
             data.Set("States", "FirstRun", "True"); // Bool
             data.Set("States", "Text", "");
             data.Set("States", "User", "PLACEHOLDERUSER");
             data.Set("States", "CarriageIndex", "0");
+            // Special Keys
+            data.AddSection("SpecialKeys");
             // UI Configuration
             data.Set("UI", "Alpha", "1");// Float
             data.Set("UI", "CanPlaySoundOnMouseOver", "False"); // Bool
-            data.Set("UI", "TextScale", "0.8f"); // Float
+            data.Set("UI", "TextScale", "0.8"); // Float
             data.Set("UI", "VisualStyle", "Debug");
+            data.Set("UI", "PositionX", "0.15"); // Float
+            data.Set("UI", "PositionY", "0"); // Float
+            data.Set("UI", "Size", "( 0.15 , 0.15 )"); // Vector2
+            data.Set("UI", "ColorMask", "( 1 , 1 , 1 , 1 )"); // Vector4
+            data.Set("UI", "BorderColor", "( 0 , 0 , 0 , 1 )"); // Vector4
+            // General Keys
+            data.AddSection("GeneralKeys");
+
             // Debug
             data.Set("Debug", "ErrorCount", "0"); // Int
             data.Set("Debug", "Last Error", "None");
@@ -262,12 +485,17 @@ namespace ClientPlugin
 
         public string TryParse(String xmlstring)
         {
-
+            if (xmlstring.ToLower() == "#terminal")
+            {
+                return "Initialise";
+            }
             Packet temp = new Packet();
+            MyIni copy = new MyIni();
+            copy = data;
             if (temp.data.TryParse(xmlstring))
             {
                 parser(temp);
-                if (temp.data == data | temp.SessionID == "NA")
+                if (copy == data)
                 {
                     return "UnChanged";
                 }
@@ -304,7 +532,6 @@ namespace ClientPlugin
             temp.data.GetSections(sections);
             List<MyIniKey> keys = new List<MyIniKey>();
             List<MyIniKey> tempkeys = new List<MyIniKey>();
-            List<string> keynames = new List<string>();
 
             foreach (var section in sections)
             {
@@ -320,27 +547,6 @@ namespace ClientPlugin
                 }
             }
 
-        }
-
-        private void setDefaults()
-        {
-            // INI Initialization and default values
-            // SETUP
-            data.Set("Setup", "CMDMode", "CMDTerminal");
-            data.Set("Setup", "CustomUI", "False");// Bool
-            data.Set("Setup", "SessionID", "NA");
-            // STATES
-            data.Set("States", "FirstRun", "True"); // Bool
-            data.Set("States", "Text", "PLACEHOLDERTEXT");
-            data.Set("States", "User", "PLACEHOLDERUSER");
-            // UI Configuration
-            data.Set("UI", "Alpha", "1");// Float
-            data.Set("UI", "CanPlaySoundOnMouseOver", "False"); // Bool
-            data.Set("UI", "TextScale", "0.8f"); // Float
-            data.Set("UI", "VisualStyle", "Debug");
-            // Debug
-            data.Set("Debug", "ErrorCount", "0"); // Int
-            data.Set("Debug", "Last Error", "None");
         }
     }
 }

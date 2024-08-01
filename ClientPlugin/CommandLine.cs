@@ -79,7 +79,7 @@ namespace ClientPlugin
 
             var normPos = m_position;
             normPos = MyGuiScreenHudBase.ConvertHudToNormalizedGuiPosition(ref normPos);
-            m_chatTextbox.Position = new Vector2(0.15f, 0);
+            //m_chatTextbox.Position = new Vector2(0.15f, 0);
             return true;
         }
 
