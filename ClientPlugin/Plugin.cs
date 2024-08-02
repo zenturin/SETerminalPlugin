@@ -41,6 +41,7 @@ namespace ClientPlugin
 
         private CommandLine cmd = null;
         private Comms comms = null;
+        private MyIni checker = new MyIni();
         private List<string> AllowedKeys = new List<string>
         {
             "Enter",
@@ -90,62 +91,88 @@ namespace ClientPlugin
 
             Instance = null;
         }
-
+        //DEBUG
+        private string log = "";
+        private List<MyKeys> HeldKeys = new List<MyKeys>();
         public void Update()
         {
             var controlled = MyAPIGateway.Session?.ControlledObject?.Entity;
             if (controlled is MyShipController)
             {
-                bool KeyUpdate = false;
-                List<MyKeys> MyKeys = new List<MyKeys>();
-                SpecialKeys.Clear();
-                GeneralKeys.Clear();
-
-                MyInput.Static.GetPressedKeys(MyKeys);
-                if (MyKeys.Count != 0)
+                if (((MyShipController)controlled).CustomData != "" &&
+                (((MyShipController)controlled).CustomData.ToLower() == "#terminal")
+                || checker.TryParse(((MyShipController)controlled).CustomData))
                 {
-                    foreach (var key in MyKeys)
+                    // DEBUG
+                    var x = (MyShipController)controlled;
+                    if (x.CustomData != log)
                     {
-                        var k = key.ToString();
-                        if (AllowedKeys.Contains(k))
+                        log = x.CustomData;
+                        Debug.WriteLine(log);
+                    }
+
+                    // DEBUG
+
+                    bool KeyUpdate = false;
+                    List<MyKeys> MyKeys = new List<MyKeys>();
+                    SpecialKeys.Clear();
+                    GeneralKeys.Clear();
+                    MyInput.Static.GetListOfPressedKeys(MyKeys);
+                    //MyInput.Static.GetPressedKeys(MyKeys);
+                    if (MyInput.Static.IsAnyKeyPress() || HeldKeys.Count != 0)
+                    {
+                        foreach (var key in MyKeys)
                         {
-                            SpecialKeys.Add(k);
+                            var k = key.ToString();
+                            if (AllowedKeys.Contains(k))
+                            {
+                                SpecialKeys.Add(k);
+                            }
+                            else
+                            {
+                                GeneralKeys.Add(k);
+                            }
                         }
-                        else
+                        HeldKeys.AddList(MyKeys);
+                        KeyUpdate = true;
+
+                        List<MyKeys> tempKeys = new List<MyKeys>(HeldKeys);
+                        foreach (var key in tempKeys)
                         {
-                            GeneralKeys.Add(k);
+                            if (MyInput.Static.IsNewKeyReleased(key))
+                            {
+                                HeldKeys.Remove(key);
+                            }
                         }
                     }
-                    KeyUpdate = true;
+
+
+
+
+
+
+                    //MyCubeGrid controlledGrid = ((MyCubeBlock)controlled).CubeGrid;
+
+                    if (cmd == null)
+                    {
+                        Main((MyShipController)controlled, KeyUpdate);
+                    }
+                    else if (cmd.State == MyGuiScreenState.OPENED)
+                    {
+                        Main((MyShipController)controlled, KeyUpdate);
+                    }
+                    else if (MyInput.Static.IsNewKeyPressed(VRage.Input.MyKeys.Oem8) | MyInput.Static.IsNewKeyPressed(VRage.Input.MyKeys.OemTilde))
+                    {
+                        cmd = null;
+                        Main((MyShipController)controlled, KeyUpdate);
+                    }
+
+
                 }
                 else
                 {
-                    if (SpecialKeys.Count != 0 | GeneralKeys.Count != 0)
-                    {
-                        KeyUpdate = true;
-                    }
+                    CloseMain();
                 }
-                //MyCubeGrid controlledGrid = ((MyCubeBlock)controlled).CubeGrid;
-
-                if (cmd == null)
-                {
-                    Main((MyShipController)controlled, KeyUpdate);
-                }
-                else if (cmd.State == MyGuiScreenState.OPENED)
-                {
-                    Main((MyShipController)controlled, KeyUpdate);
-                }
-                else if (MyInput.Static.IsNewKeyPressed(VRage.Input.MyKeys.Oem8))
-                {
-                    cmd = null;
-                    Main((MyShipController)controlled, KeyUpdate);
-                }
-                
-
-            }
-            else
-            {
-                CloseMain();
             }
         }
 
@@ -155,11 +182,8 @@ namespace ClientPlugin
             {
                 comms = new Comms(controlled);
             }
-            if (KeyUpdate)
-            {
-                comms.Data.SpecialKeys = SpecialKeys;
-                comms.Data.GeneralKeys = GeneralKeys;
-            }
+
+            string newText = comms.update();
             if (cmd == null)
             {
                 comms.Controlled = controlled;
@@ -169,12 +193,14 @@ namespace ClientPlugin
                 cmd.ChatTextbox.MoveCarriageToEnd();
             }
 
-            string newText = comms.update(cmd.m_chatTextbox.Text,cmd.m_chatTextbox.CarriagePositionIndex);
+
+            newText = comms.update(cmd.m_chatTextbox.Text,cmd.m_chatTextbox.CarriagePositionIndex,SpecialKeys,GeneralKeys);
             if (newText != null)
             {
                 cmd.m_chatTextbox.Text = newText;
                 cmd.m_chatTextbox.MoveCarriageToEnd();
             }
+            //Moved Temporarily
         }
 
         public void CloseMain()

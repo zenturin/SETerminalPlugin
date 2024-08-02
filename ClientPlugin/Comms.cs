@@ -26,7 +26,7 @@ namespace ClientPlugin
             Controlled = controller;
         }
 
-        public string update(string CMDText,int carriage)
+        public string update(string CMDText,int carriage,List<string> SpecialKeys,List<string>GeneralKeys)
         {
             
 
@@ -52,7 +52,9 @@ namespace ClientPlugin
                 CMDText != Data.Text ||
                 carriage != Data.CarriageIndex ||
                 Controlled.Pilot.Name.ToString() != Data.User ||
-                Data.SessionID == "NA";
+                Data.SessionID == "NA" ||
+                SpecialKeys != Data.SpecialKeys ||
+                GeneralKeys != Data.GeneralKeys;
             if (Data.SessionID == "NA")
             {
                 Data.randomizeSessionID();
@@ -65,11 +67,15 @@ namespace ClientPlugin
                 Data.Text = CMDText;
                 Data.CarriageIndex = carriage;
                 Data.User = Controlled.Pilot.Name.ToString();
+                Data.SpecialKeys = SpecialKeys;
+                Data.GeneralKeys = GeneralKeys;
+
+
+                // THIS MUST GO LAST DUMBASS
                 Controlled.CustomData = Data.ToString();
             }
 
             string x = Data.TryParse(Controlled.CustomData);
-            Debug.WriteLine("TryParse = " + x);
             if (x == "Failed") // Customdata is corrupted
             {
                 Controlled.CustomData = Data.ToString();
@@ -81,6 +87,44 @@ namespace ClientPlugin
                 {
                     return Data.Text;
                 }
+            }
+            else if (x == "Initialise") // Customdata contains #Terminal
+            {
+                Data.Reset();
+                Controlled.CustomData = Data.ToString();
+            }
+            return null;
+        }
+
+        public string update()
+        {
+            /*
+            if (CMDText != Data.Text)
+            {
+                Data.Text = CMDText;
+                ClientUpdate = true;
+            }
+            if (carriage != Data.CarriageIndex)
+            {
+                Data.CarriageIndex = carriage;
+                ClientUpdate = true;
+            }
+            if (Controlled.Pilot.Name.ToString() != Data.User)
+            {
+                Data.User = Controlled.Pilot.Name.ToString();
+                ClientUpdate = true;
+            }
+            */
+
+            string x = Data.TryParse(Controlled.CustomData);
+            if (x == "Failed") // Customdata is corrupted
+            {
+                Controlled.CustomData = Data.ToString();
+                Data.flagError("Ini Structure is incorrect and failed to parse");
+            }
+            else if (x == "Changed") // Customdata has been updated by the server
+            {
+
             }
             else if (x == "Initialise") // Customdata contains #Terminal
             {

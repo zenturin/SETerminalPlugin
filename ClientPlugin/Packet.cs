@@ -118,28 +118,51 @@ namespace ClientPlugin
         {
             get
             {
-                List<MyIniKey> IniKeys = new List<MyIniKey>();
+
                 List<string> Keys = new List<string>();
-                data.GetKeys("SpecialKeys", IniKeys);
-                foreach (var key in IniKeys)
+                string y = data.Get("Keys", "SpecialKeys").ToString();
+                try
                 {
-                    Keys.Add(key.Name);
+                    List<string> z = new List<string>();
+                    if (y.Contains(','))
+                    {
+                        z = y.Split(',').ToList();
+                    }
+                    else
+                    {
+                         
+                        z.Add(y);
+                    }
+
+                    foreach (var item in z)
+                    {
+                        string temp = item;
+                        int index = 0;
+                        index = temp.IndexOf("(");
+                        if (index != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        index = temp.IndexOf(")");
+                        if (index != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        temp.Trim();
+                        Keys.Add(temp);
+                    }
+                    return Keys;
                 }
-                return Keys;
+                catch (Exception)
+                {
+                    flagError("Incorrect SpecialKeys Format");
+                    return new List<string>();
+                }
             }
             set
             {
-                List<MyIniKey> IniKeys = new List<MyIniKey>();
-                data.GetKeys("SpecialKeys", IniKeys);
-                foreach (var oldkey in IniKeys)
-                {
-                    data.Delete("SpecialKeys", oldkey.Name);
-                }
-
-                foreach (var key in value)
-                {
-                    data.Set("SpecialKeys", key, "");
-                }
+                string str = "( " + string.Join(",", value) + " )";
+                data.Set("Keys", "SpecialKeys", str);
             }
         }
 
@@ -392,28 +415,52 @@ namespace ClientPlugin
         {
             get
             {
-                List<MyIniKey> IniKeys = new List<MyIniKey>();
+
                 List<string> Keys = new List<string>();
-                data.GetKeys("GeneralKeys", IniKeys);
-                foreach (var key in IniKeys)
+                string y = data.Get("Keys", "GeneralKeys").ToString();
+                try
                 {
-                    Keys.Add(key.Name);
+                    List<string> z = new List<string>();
+                    if (y.Contains(','))
+                    {
+                        z = y.Split(',').ToList();
+                    }
+                    else
+                    {
+
+                        z.Add(y);
+                    }
+
+
+                    foreach (var item in z)
+                    {
+                        string temp = item;
+                        int index = 0;
+                        index = temp.IndexOf("(");
+                        if (index != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        index = temp.IndexOf(")");
+                        if (index != -1)
+                        {
+                            temp = temp.Remove(index, 1);
+                        }
+                        temp.Trim();
+                        Keys.Add(temp);
+                    }
+                    return Keys;
                 }
-                return Keys;
+                catch (Exception)
+                {
+                    flagError("Incorrect General Keys Format");
+                    return new List<string>();
+                }
             }
             set
             {
-                List<MyIniKey> IniKeys = new List<MyIniKey>();
-                data.GetKeys("GeneralKeyss", IniKeys);
-                foreach (var oldkey in IniKeys)
-                {
-                    data.Delete("GeneralKeys", oldkey.Name);
-                }
-
-                foreach (var key in value)
-                {
-                    data.Set("GeneralKeys", key, "");
-                }
+                string str = "( " + string.Join(",", value) + " )";
+                data.Set("Keys", "GeneralKeys", str);
             }
         }
         public int ErrorCount
@@ -458,8 +505,8 @@ namespace ClientPlugin
             data.Set("States", "Text", "");
             data.Set("States", "User", "PLACEHOLDERUSER");
             data.Set("States", "CarriageIndex", "0");
-            // Special Keys
-            data.AddSection("SpecialKeys");
+            // Keys
+            data.AddSection("Keys");
             // UI Configuration
             data.Set("UI", "Alpha", "1");// Float
             data.Set("UI", "CanPlaySoundOnMouseOver", "False"); // Bool
@@ -470,8 +517,6 @@ namespace ClientPlugin
             data.Set("UI", "Size", "( 0.15 , 0.15 )"); // Vector2
             data.Set("UI", "ColorMask", "( 1 , 1 , 1 , 1 )"); // Vector4
             data.Set("UI", "BorderColor", "( 0 , 0 , 0 , 1 )"); // Vector4
-            // General Keys
-            data.AddSection("GeneralKeys");
 
             // Debug
             data.Set("Debug", "ErrorCount", "0"); // Int
