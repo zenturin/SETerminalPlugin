@@ -124,7 +124,7 @@ namespace ClientPlugin
             }
             else if (x == "Changed") // Customdata has been updated by the server
             {
-
+                return "Changed";
             }
             else if (x == "Initialise") // Customdata contains #Terminal
             {

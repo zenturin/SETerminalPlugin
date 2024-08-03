@@ -197,8 +197,12 @@ namespace ClientPlugin
             newText = comms.update(cmd.m_chatTextbox.Text,cmd.m_chatTextbox.CarriagePositionIndex,SpecialKeys,GeneralKeys);
             if (newText != null)
             {
-                cmd.m_chatTextbox.Text = newText;
-                cmd.m_chatTextbox.MoveCarriageToEnd();
+                if (cmd.m_chatTextbox.Text != comms.Data.Text)
+                {
+                    cmd.m_chatTextbox.Text = comms.Data.Text;
+                    cmd.m_chatTextbox.MoveCarriageToEnd();
+                }
+
             }
             //Moved Temporarily
         }
