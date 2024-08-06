@@ -32,6 +32,7 @@ namespace ClientPlugin
         {
             get
             {
+                data.TryParse
                 return (data.Get("Setup", "CMDMode").ToString());
             }
             set
