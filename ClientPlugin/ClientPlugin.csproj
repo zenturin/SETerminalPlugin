@@ -490,9 +490,8 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Packet.cs" />
+    <Compile Include="Interface.cs" />
     <Compile Include="CommandLine.cs" />
-    <Compile Include="Comms.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

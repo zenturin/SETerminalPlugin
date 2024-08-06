@@ -1,87 +1,42 @@
 ﻿using System;
-using System.Reflection;
-using HarmonyLib;
-using VRage.Plugins;
-using System.IO;
-using VRage.FileSystem;
-using static Sandbox.Engine.Utils.MyConfigBase;
-using SpaceEngineers;
-using ClientPlugin;
-using Sandbox;
-using Sandbox.Graphics.GUI;
-using VRage.Library.Utils;
-using VRageRender.ExternalApp;
-using VRage.Game.Components;
-using VRage.Input;
-using Sandbox.Game.Gui;
-using Sandbox.Game.World;
-using System.Text;
-using VRage.Game;
-using VRage.Utils;
-using VRageMath;
-using DirectShowLib.Dvd;
-using Sandbox.Game.Entities;
-using Sandbox.ModAPI;
-using static VRage.Game.MyObjectBuilder_ControllerSchemaDefinition;
 using System.Collections.Generic;
-using VRage.Game.ModAPI.Ingame.Utilities;
-using VRage;
-using System.Runtime.CompilerServices;
 using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
+using EmptyKeys.UserInterface.Controls;
+using Epic.OnlineServices;
+using HarmonyLib;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using NLog.LayoutRenderers;
+using Sandbox.Game.Entities;
+using Sandbox.Game.Entities.Blocks;
+using Sandbox.Graphics.GUI;
+using Sandbox.ModAPI;
+using SpaceEngineers.Game.Utils;
+using VRage.Input;
+using VRage.Plugins;
+using static VRage.Game.MyObjectBuilder_ControllerSchemaDefinition;
 
 namespace ClientPlugin
 {
-
     // ReSharper disable once UnusedType.Global
     public class Plugin : IPlugin, IDisposable
     {
-        public const string Name = "Terminal";
-
+        public const string Name = "TerminalPlugin";
         public static Plugin Instance { get; private set; }
-
-        private CommandLine cmd = null;
-        private Comms comms = null;
-        private MyIni checker = new MyIni();
-        private List<string> AllowedKeys = new List<string>
-        {
-            "Enter",
-            "Back",
-            "LeftAlt",
-            "RightAlt",
-            "LeftControl",
-            "RightControl",
-            "LeftShift",
-            "RightShift",
-            "Tab",
-            "Insert",
-            "Delete",
-            "Home",
-            "End",
-            "PageUp",
-            "PageDown",
-            "Up",
-            "Down",
-            "Left",
-            "Right",
-            "Clear",
-            "NumLock",
-            "ScrollLock",
-            "Pause",
-            "Oem8"
-        };
-        private List<string> SpecialKeys = new List<string>();
-        private List<string> GeneralKeys = new List<string>();
+        public MyProgrammableBlock PB = null;
+        Interface PBInterface;
+        CommandLine cmd;
+        bool cmdallowed = false;
 
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         public void Init(object gameInstance)
         {
             Instance = this;
+
             // TODO: Put your one time initialization code here.
             Harmony harmony = new Harmony(Name);
             harmony.PatchAll(Assembly.GetExecutingAssembly());
-            // My crap
-
-            
         }
 
         public void Dispose()
@@ -91,131 +46,151 @@ namespace ClientPlugin
 
             Instance = null;
         }
-        //DEBUG
-        private string log = "";
-        private List<MyKeys> HeldKeys = new List<MyKeys>();
+
         public void Update()
         {
             var controlled = MyAPIGateway.Session?.ControlledObject?.Entity;
-            if (controlled is MyShipController)
+
+            if (controlled is MyShipController controller)
             {
-                if (((MyShipController)controlled).CustomData != "" &&
-                (((MyShipController)controlled).CustomData.ToLower() == "#terminal")
-                || checker.TryParse(((MyShipController)controlled).CustomData))
+                // CONTROLLER LOGIC
+                switch (controller.CustomData.ToLower())
                 {
-                    // DEBUG
-                    var x = (MyShipController)controlled;
-                    if (x.CustomData != log)
+                    case "":
+                        break;
+                    case "#terminal":
+                        controller.CustomData = "[Terminal Controller]\n";
+                        controller.CustomData += "[NA] : False";
+                        break;
+                }
+                if (isPBAlive() == false && controller.CustomData != "")
+                {
+                    string temp = controller.CustomData;
+                    string tag = "[NA]";
+                    try
                     {
-                        log = x.CustomData;
-                        Debug.WriteLine(log);
+                        tag = temp.Split('\n')
+                                          [1].Split(':')
+                                          [0].Trim();
+                    }
+                    catch (Exception)
+                    {
+
                     }
 
-                    // DEBUG
-
-                    bool KeyUpdate = false;
-                    List<MyKeys> MyKeys = new List<MyKeys>();
-                    SpecialKeys.Clear();
-                    GeneralKeys.Clear();
-                    MyInput.Static.GetListOfPressedKeys(MyKeys);
-                    //MyInput.Static.GetPressedKeys(MyKeys);
-                    if (MyInput.Static.IsAnyKeyPress() || HeldKeys.Count != 0)
+                    var PBOnline = GetPB(controller);
+                    controller.CustomData = "[Terminal Controller]\n" +
+                        tag + " : " + PBOnline.ToString();
+                }
+                // PB LOGIC
+                if (isPBAlive())
+                {
+                    if (PBInterface == null)
                     {
-                        foreach (var key in MyKeys)
-                        {
-                            var k = key.ToString();
-                            if (AllowedKeys.Contains(k))
-                            {
-                                SpecialKeys.Add(k);
-                            }
-                            else
-                            {
-                                GeneralKeys.Add(k);
-                            }
-                        }
-                        HeldKeys.AddList(MyKeys);
-                        KeyUpdate = true;
-
-                        List<MyKeys> tempKeys = new List<MyKeys>(HeldKeys);
-                        foreach (var key in tempKeys)
-                        {
-                            if (MyInput.Static.IsNewKeyReleased(key))
-                            {
-                                HeldKeys.Remove(key);
-                            }
-                        }
+                        PBInterface = new Interface(PB, controller);
                     }
-
-
-
-
-
-
-                    //MyCubeGrid controlledGrid = ((MyCubeBlock)controlled).CubeGrid;
-
-                    if (cmd == null)
-                    {
-                        Main((MyShipController)controlled, KeyUpdate);
-                    }
-                    else if (cmd.State == MyGuiScreenState.OPENED)
-                    {
-                        Main((MyShipController)controlled, KeyUpdate);
-                    }
-                    else if (MyInput.Static.IsNewKeyPressed(VRage.Input.MyKeys.Oem8) | MyInput.Static.IsNewKeyPressed(VRage.Input.MyKeys.OemTilde))
-                    {
-                        cmd = null;
-                        Main((MyShipController)controlled, KeyUpdate);
-                    }
-
-
+                    cmdallowed = true;
+                    Main(); // IF PB is alive, run the main loop
                 }
                 else
                 {
-                    CloseMain();
+                    cmd = null;
+                    PBInterface = null;
+                    cmdallowed = false;
                 }
+            }
+            else
+            {
+                cmd = null;
+                PBInterface = null;
+                cmdallowed = false;
             }
         }
 
-        public void Main(MyShipController controlled,bool KeyUpdate)
+        void Main()
         {
-            if (comms == null)
+            // Manage Key Lists
+            var PressedKeys = new List<MyKeys>();
+            var ReleasedKeys = new List<MyKeys>();
+            MyInput.Static.GetPressedKeys(PressedKeys);
+            var tempkeys = new List<MyKeys>();
+            tempkeys = PressedKeys;
+            foreach (var key in PressedKeys)
             {
-                comms = new Comms(controlled);
+                if (MyInput.Static.IsNewKeyReleased(key))
+                {
+                    ReleasedKeys.Add(key);
+                    tempkeys.Remove(key);
+                }
             }
+            PressedKeys = tempkeys;
+            // End of Key Management
 
-            string newText = comms.update();
-            if (cmd == null)
+            // Closes CMD if the user has closed it
+            if (cmd != null && cmd.State == MyGuiScreenState.CLOSED)
             {
-                comms.Controlled = controlled;
-                comms.Data.SessionID = "NA";
-                startCMD(controlled);
-                cmd.ChatTextbox.Text = comms.Data.Text;
+                cmd = null;
+            }
+            //
+
+            // Start CMD if not already running
+            if (cmd == null && (MyInput.Static.IsKeyPress(MyKeys.OemTilde) || MyInput.Static.IsKeyPress(MyKeys.Oem8)) && cmdallowed)
+            {
+                PBInterface.RetrieveUI();
+                startCMD();
+                cmd.ChatTextbox.Text = PBInterface.textbox.Text;
                 cmd.ChatTextbox.MoveCarriageToEnd();
             }
-
-
-            newText = comms.update(cmd.m_chatTextbox.Text,cmd.m_chatTextbox.CarriagePositionIndex,SpecialKeys,GeneralKeys);
-            if (newText != null)
+            else if (cmd != null)
             {
-                if (cmd.m_chatTextbox.Text != comms.Data.Text)
+                PBInterface.textbox.Text = cmd.ChatTextbox.Text;
+                PBInterface.textbox.CarriageIndex = cmd.ChatTextbox.CarriagePositionIndex;
+                PBInterface.Update(cmd.ChatTextbox.Text, cmd.ChatTextbox.CarriagePositionIndex, PressedKeys, ReleasedKeys);
+                if (PBInterface.textbox.Text != cmd.ChatTextbox.Text)
                 {
-                    cmd.m_chatTextbox.Text = comms.Data.Text;
-                    cmd.m_chatTextbox.MoveCarriageToEnd();
+                    cmd.ChatTextbox.Text = PBInterface.textbox.Text;
+                    cmd.ChatTextbox.MoveCarriageToEnd();
                 }
-
             }
-            //Moved Temporarily
+            if (PB.CustomData.ToLower() == "#terminal")
+            {
+                PBInterface.Reset();
+            }
+            //
         }
 
-        public void CloseMain()
+        bool isPBAlive()
         {
-            cmd = null;
+            var result = PB != null
+                && PB.IsWorking;
+            return result;
         }
 
-
-        public void startCMD(MyShipController controlled)
+        bool GetPB(MyShipController controller)
         {
-            
+            if (controller.CustomData.Contains("[Terminal Controller]"))
+            {
+                string temp = controller.CustomData;
+                string Tag = temp.Split('\n')
+                [1].Split(':')
+                    [0].Trim();
+                var grid = controller.CubeGrid;
+                var ProgrammableBlocks = grid.GetFatBlocks<MyProgrammableBlock>();
+                foreach (var block in ProgrammableBlocks)
+                {
+                    if (block.DisplayNameText.Contains(Tag))
+                    {
+                        PB = block;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        public void startCMD()
+        {
+
             //// Check if the 'capslock' key has been pressed since the last frame
             //if (MyInput.Static.IsNewKeyPressed(MyKeys.OemTilde))
             //{
@@ -223,7 +198,7 @@ namespace ClientPlugin
             //    cmd = new CommandLine();
             //    MyGuiSandbox.AddScreen(cmd);
             //}
-            if (comms.Data.CMDMode == "CMDInput")
+            if (PBInterface.UI.CMDMode == "CMDInput")
             {
                 // creates a transparent commandline window
                 cmd = new CommandLine();
@@ -231,7 +206,7 @@ namespace ClientPlugin
                 cmd.m_chatTextbox.CanPlaySoundOnMouseOver = false;
                 MyGuiSandbox.AddScreen(cmd);
             }
-            else if (comms.Data.CMDMode == "CMDTerminal")
+            else if (PBInterface.UI.CMDMode == "CMDTerminal")
             {
                 // creates a transparent commandline window
                 cmd = new CommandLine();
@@ -241,36 +216,22 @@ namespace ClientPlugin
                 cmd.m_chatTextbox.MoveCarriageToEnd();
                 MyGuiSandbox.AddScreen(cmd);
             }
-            else if (comms.Data.CMDMode == "Custom")
+            else if (PBInterface.UI.CMDMode == "Custom")
             {
                 cmd = new CommandLine();
-                cmd.m_chatTextbox.Alpha = comms.Data.Alpha;
-                cmd.m_chatTextbox.CanPlaySoundOnMouseOver = comms.Data.CanPlaySoundOnMouseOver;
-                cmd.m_chatTextbox.Text = comms.Data.Text;
+                cmd.m_chatTextbox.Alpha = PBInterface.UI.Alpha;
+                cmd.m_chatTextbox.CanPlaySoundOnMouseOver = PBInterface.UI.CanPlaySoundOnMouseOver;
+                cmd.m_chatTextbox.Text = "";
                 cmd.m_chatTextbox.MoveCarriageToEnd();
-                cmd.ChatTextbox.VisualStyle = comms.Data.VisualStyle;
-                cmd.ChatTextbox.TextScale = comms.Data.TextScale;
-                cmd.ChatTextbox.PositionX = comms.Data.PositionX;
-                cmd.ChatTextbox.PositionY = comms.Data.PositionY;
-                cmd.ChatTextbox.Size = comms.Data.Size;
-                cmd.ChatTextbox.ColorMask = comms.Data.ColorMask;
-                cmd.ChatTextbox.BorderColor = comms.Data.BorderColor;
+                cmd.ChatTextbox.VisualStyle = PBInterface.UI.VisualStyle;
+                cmd.ChatTextbox.TextScale = PBInterface.UI.TextScale;
+                cmd.ChatTextbox.PositionX = PBInterface.UI.PositionX;
+                cmd.ChatTextbox.PositionY = PBInterface.UI.PositionY;
+                cmd.ChatTextbox.Size = PBInterface.UI.Size;
+                cmd.ChatTextbox.ColorMask = PBInterface.UI.ColorMask;
+                cmd.ChatTextbox.BorderColor = PBInterface.UI.BorderColor;
                 MyGuiSandbox.AddScreen(cmd);
             }
         }
-
-
-        // TODO: Uncomment and use this method to create a plugin configuration dialog
-        // ReSharper disable once UnusedMember.Global
-        /*public void OpenConfigDialog()
-        {
-            MyGuiSandbox.AddScreen(new MyPluginConfigDialog());
-        }*/
-
-        //TODO: Uncomment and use this method to load asset files
-        /*public void LoadAssets(string folder)
-        {
-
-        }*/
     }
 }
